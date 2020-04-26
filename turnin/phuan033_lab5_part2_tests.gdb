@@ -1,156 +1,207 @@
-/*	Author: lab
- *  Partner(s) Name: 
- *	Lab Section:
- *	Assignment: Lab #  Exercise #
- *	Exercise Description: [optional - include for your own benefit]
- *
- *	I acknowledge all content contained herein, excluding template or example
- *	code, is my own original work.
- */
-#include <avr/io.h>
-#ifdef _SIMULATE_
-#include "simAVRHeader.h"
-#endif
+# Test file for "lab_chip"
 
-enum States{START, INIT, INCREASE, DECREASE, WAIT_IN, WAIT_DE, RESET} state;
-unsigned char button0;
-unsigned char button1;
 
-void Tick()
-{
-	button0 = (~PINA & 0x01);
-	button1 = (~PINA & 0x02);
+# commands.gdb provides the following functions for ease:
+#   test "<message>"
+#       Where <message> is the message to print. Must call this at the beginning of every test
+#       Example: test "PINA: 0x00 => expect PORTC: 0x01"
+#   checkResult
+#       Verify if the test passed or failed. Prints "passed." or "failed." accordingly, 
+#       Must call this at the end of every test.
+#   expectPORTx <val>
+#       With x as the port (A,B,C,D)
+#       The value the port is epected to have. If not it will print the erroneous actual value
+#   setPINx <val>
+#       With x as the port or pin (A,B,C,D)
+#       The value to set the pin to (can be decimal or hexidecimal
+#       Example: setPINA 0x01
+#   printPORTx f OR printPINx f 
+#       With x as the port or pin (A,B,C,D)
+#       With f as a format option which can be: [d] decimal, [x] hexadecmial (default), [t] binary 
+#       Example: printPORTC d
+#   printDDRx
+#       With x as the DDR (A,B,C,D)
+#       Example: printDDRB
 
-	switch(state) {
-		case START:
-			state = INIT;
-			break;
+echo ======================================================\n
+echo Running all tests..."\n\n
 
-		case INIT:
+test "PINA: 0x00 => PORTC: 0x00"
+set state = START
+setPINA ~0x00
+continue 2
+expectPORTC 0x00
+expect state INIT
+checkResult
 
-			if(button0 && !button1)
-			{
-				state = INCREASE;
-			}
-			else if(!button0 && button1)
-			{
-				state = DECREASE;
-			}
-			else if(button0 && button1)
-			{
-				state = RESET;
-			}
-			else
-			{
-				state = INIT;
-			}
+test "PINA: 0x01 => PORTC: 0x01"
+set state = START
+setPINA ~0x01
+continue 2
+expectPORTC 0x01
+expect state INCREASE
+checkResult
 
-			break;
+test "PINA: 0x02 = > PORTC: 0x00"
+set state = START
+setPINA ~0x02
+continue 2
+expectPORTC 0x00
+checkResult
 
-		case INCREASE:
+test "PINA: 0x01, 0x02 = > PORTC: 0x00"
+set state = START
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02
+continue 2
+setPINA ~0x00
+continue 2
+expectPORTC 0x00
+checkResult
 
-			state = WAIT_IN;
-			break;
+test "PINA: 0x02, 0x01 => PORTC 0x01"
+set state = START
+setPINA ~0x02
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+expectPORTC 0x01
+checkResult
 
-		case DECREASE:
+test "PINA: 0x01, ...... = > PORTC 0x09"
+set state = START
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01 #4
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01 #6
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00 #should still be nine (overflow)
+continue 2
+expectPORTC 0x09
+checkResult
 
-			state = WAIT_DE;
-			break;
 
-		case WAIT_IN:
-
-			if(!button0 && !button1)
-			{
-				state = INIT;
-			}
-			else if(button0 && button1)
-			{
-				state = RESET;
-			}
-			else
-			{
-				state = WAIT_IN;
-			}
-
-			break;
-
-		case WAIT_DE:
-
-			if(!button0 && !button1)
-			{
-				state = INIT;
-			}
-			else if(button0 && button1)
-			{
-				state = RESET;
-			}
-			else
-			{
-				state = WAIT_DE;
-			}
-
-			break;
-
-		case RESET:
-
-			state = WAIT_DE;
-			break;
-
-		default:
-
-			state = START;
-			break;
-	}
-
-	switch(state)
-	{
-		case START:
-			break;
-
-		case INIT:
-			break;
-
-		case INCREASE:
-			if(PORTC < 9)
-			{
-				PORTC = PORTC + 1;
-			}
-			else
-			{
-				PORTC = 0x09;
-			}
-
-			break;
-
-		case DECREASE:
-			if(PORTC > 0)
-			{
-				PORTC = PORTC -1;
-			}
-			else
-			{
-				PORTC = 0x00;
-			}
-
-			break;
-
-		case RESET:
-			PORTC = 0x00;
-			break;
-	}
-
-}
-
-int main(void) {
-	DDRA = 0x00; PORTA = 0xFF;
-	DDRC = 0xFF; PORTC = 0x00;
-
-	state = START;
-	PORTC = 0x00;
-
-	while(1) {
-		Tick();
-	}
-
-		return 0;
-}
+test "PINA: 0x01, ......0x02 = > PORTC 0x00"
+set state = START
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01 #4
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01 #6
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x01 #9
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02 #decrease here
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02 #4
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02
+continue 2
+setPINA ~0x00
+continue 2
+setPINA ~0x02 # underfloq
+continue 2 
+setPINA ~0x00
+continue 2
+expectPORTC 0x00
+checkResult
+# Report on how many tests passed/tests ran
+set $passed=$tests-$failed
+eval "shell echo Passed %d/%d tests.\n",$passed,$tests
+echo ======================================================\n
